@@ -1,5 +1,6 @@
 export interface Task {
   id: string;
+  day_number?: number;
   category: string;
   name: string;
   description?: string;
