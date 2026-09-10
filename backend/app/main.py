@@ -1,7 +1,9 @@
 import os
 import json
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.models.models import PlannerDay, PlannerTask, Milestone, ProjectStage, ProjectChecklist
@@ -19,7 +21,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for local React frontend
+# Enable CORS for local and production React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,6 +35,9 @@ def seed_database_if_needed():
     try:
         if db.query(PlannerDay).count() == 0:
             json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "planner", "planner_data.json")
+            if not os.path.exists(json_path):
+                json_path = os.path.join(os.getcwd(), "planner", "planner_data.json")
+
             if os.path.exists(json_path):
                 with open(json_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -108,7 +113,7 @@ def seed_database_if_needed():
 def startup_event():
     seed_database_if_needed()
 
-# Include Routers
+# Include API Routers under /api/v1
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(planner.router, prefix=settings.API_V1_STR)
 app.include_router(tasks.router, prefix=settings.API_V1_STR)
@@ -123,6 +128,23 @@ app.include_router(verification.router, prefix=settings.API_V1_STR)
 app.include_router(export.router, prefix=settings.API_V1_STR)
 app.include_router(analytics.router, prefix=settings.API_V1_STR)
 
-@app.get("/")
-def root():
+@app.get("/api/health")
+def root_health():
     return {"message": "200-Day ML Systems Execution Dashboard API", "docs": "/docs"}
+
+# Single-Service SPA Frontend static serving fallback
+frontend_dist = os.path.join(os.getcwd(), "frontend", "dist")
+if not os.path.exists(frontend_dist):
+    frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist")
+
+if os.path.exists(frontend_dist):
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(request: Request, full_path: str):
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+            return None
+        file_path = os.path.join(frontend_dist, full_path)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
