@@ -1,17 +1,17 @@
 services:
-  # Single All-in-One Web Service on Render (Serves both React UI and FastAPI API)
   - type: web
-    name: field-work
-    env: python
+    name: ml-execution-dashboard
+    runtime: docker
     region: singapore
-    buildCommand: cd frontend && npm install && npm run build && cd .. && pip install -r backend/requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    dockerfilePath: ./Dockerfile
+
     envVars:
       - key: DATABASE_URL
-        sync: false # Set your Neon PostgreSQL URL here
+        sync: false
+
       - key: SECRET_KEY
         generateValue: true
+
       - key: TIMEZONE
         value: Asia/Kolkata
-      - key: PYTHONPATH
-        value: ./backend

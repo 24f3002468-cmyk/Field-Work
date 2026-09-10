@@ -3,7 +3,7 @@ import json
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.models.models import PlannerDay, PlannerTask, Milestone, ProjectStage, ProjectChecklist
@@ -12,7 +12,7 @@ from app.api.v1 import (
     placement_points, applications, verification, export, analytics
 )
 
-# Create tables
+# Create database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -21,7 +21,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for local and production React frontend
+# Enable CORS for local and production deployment
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -128,23 +128,39 @@ app.include_router(verification.router, prefix=settings.API_V1_STR)
 app.include_router(export.router, prefix=settings.API_V1_STR)
 app.include_router(analytics.router, prefix=settings.API_V1_STR)
 
-@app.get("/api/health")
-def root_health():
-    return {"message": "200-Day ML Systems Execution Dashboard API", "docs": "/docs"}
-
-# Single-Service SPA Frontend static serving fallback
+# Find frontend dist path
 frontend_dist = os.path.join(os.getcwd(), "frontend", "dist")
 if not os.path.exists(frontend_dist):
-    frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist")
+    frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
 
-if os.path.exists(frontend_dist):
-    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+assets_dir = os.path.join(frontend_dist, "assets")
+if os.path.exists(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
-    @app.get("/{full_path:path}")
-    async def serve_spa(request: Request, full_path: str):
-        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
-            return None
-        file_path = os.path.join(frontend_dist, full_path)
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(frontend_dist, "index.html"))
+@app.get("/")
+def root():
+    index_file = os.path.join(frontend_dist, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return {
+        "message": "200-Day ML Systems Execution Dashboard API",
+        "docs": "/docs",
+        "health": "/api/v1/verification/health"
+    }
+
+# Fallback route for React SPA client-side routing
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    # Exclude API endpoints and docs
+    if full_path.startswith("api/") or full_path.startswith("docs") or full_path == "openapi.json":
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
+    
+    file_path = os.path.join(frontend_dist, full_path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    index_file = os.path.join(frontend_dist, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    
+    return JSONResponse(status_code=404, content={"detail": f"Route /{full_path} not found. Build frontend with 'npm run build'."})

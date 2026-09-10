@@ -9,11 +9,14 @@ db_url = settings.DATABASE_URL
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
+# Clean channel_binding parameter if present to avoid driver mismatch in psycopg2/libpq
+if "channel_binding=" in db_url:
+    db_url = db_url.replace("&channel_binding=require", "").replace("channel_binding=require&", "").replace("channel_binding=require", "")
+
 engine_kwargs = {}
 if db_url.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 elif "neon.tech" in db_url or "sslmode" in db_url:
-    # Ensure SSL mode for Neon PostgreSQL
     engine_kwargs["pool_pre_ping"] = True
     engine_kwargs["pool_recycle"] = 300
 
