@@ -1,7 +1,17 @@
 import React, { useEffect } from 'react';
 import { useDashboardStore } from '../store/useDashboardStore';
 import { WhatShouldIDoNow } from '../components/WhatShouldIDoNow';
-import { AlertTriangle, CheckCircle2, Clock, Calendar, ArrowRight, ShieldCheck, Target, Award } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Calendar,
+  ArrowRight,
+  ShieldCheck,
+  Target,
+  Award,
+  BookOpen
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
