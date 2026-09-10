@@ -94,3 +94,30 @@ export interface VerificationReport {
   issues: string[];
   timestamp: string;
 }
+
+export interface ApplicationResponse {
+  id: number;
+  company: string;
+  role: string;
+  application_date: string;
+  status: string;
+  notes?: string;
+  job_url?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjectStageResponse {
+  id: number;
+  stage_number: number;
+  name: string;
+  description?: string;
+  status: string;
+}
+
+export interface ProjectChecklistResponse {
+  id: number;
+  title: string;
+  verified: boolean;
+  category?: string;
+}
